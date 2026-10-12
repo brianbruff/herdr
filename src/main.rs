@@ -244,6 +244,11 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # [worktrees]
 # directory = "~/.herdr/worktrees"
 
+# [editor]
+# Ctrl+click file references such as intent.py:303 to open them. Empty disables it.
+# Placeholders: {file} {line} {column} {root} (git root of the pane cwd).
+# open_file = ["code", "{root}", "-g", "{file}:{line}:{column}"]
+
 [ui]
 # Sidebar width (auto-scaled based on workspace names, this sets the default)
 # sidebar_width = 26

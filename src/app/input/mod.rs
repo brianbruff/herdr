@@ -38,6 +38,7 @@ fn modified_url_click_modifier_matches_terminal_mouse_reporting() {
 
 mod clipboard;
 mod copy_mode;
+mod file_link_click;
 mod modal;
 mod mouse;
 mod navigate;
@@ -521,7 +522,12 @@ impl App {
             self.state
                 .url_at_pane_cell(&self.terminal_runtimes, info.id, viewport_row, col)
         else {
-            return false;
+            if !self.handle_file_link_click(info.id, viewport_row, col) {
+                return false;
+            }
+            self.last_pane_click = None;
+            self.pending_url_click_sources.insert(source_id);
+            return true;
         };
 
         self.last_pane_click = None;

@@ -200,6 +200,19 @@ fn pane_custom_command_pty_builder_with_comspec(
     builder
 }
 
+/// The fzf file picker needs a POSIX shell; callers fall back to the first match.
+pub(crate) fn file_picker_argv(
+    _labels: &[String],
+    _root: &std::path::Path,
+    _open_argv: &[String],
+    _file_marker: &str,
+) -> std::io::Result<Vec<String>> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "the file picker is not supported on this platform",
+    ))
+}
+
 pub(crate) fn scrollback_editor_argv(path: &std::path::Path) -> std::io::Result<Vec<String>> {
     let editor = std::env::var("VISUAL")
         .ok()

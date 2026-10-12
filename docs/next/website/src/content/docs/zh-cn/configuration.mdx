@@ -96,6 +96,19 @@ Git 工作区行提供 worktree 操作。`New worktree` 会创建检出：如果
 
 删除 worktree 检出需要显式操作。在归组的子工作区上使用 `Delete worktree checkout...` 来运行 `git worktree remove`。Herdr 会先请求 Git 安全删除。如果 Git 因检出中存在已修改或未跟踪的文件而拒绝，Herdr 会在强制删除前再次确认。分支不会被删除。
 
+## 文件链接
+
+按住 Ctrl 点击窗格输出中的文件引用，例如 `intent.py:303`、`src/app/mod.rs:22:5` 或 `pkg/intent.py:69-73`，即可在编辑器中打开。设置命令之前，文件链接处于关闭状态：
+
+```toml
+[editor]
+open_file = ["code", "{root}", "-g", "{file}:{line}:{column}"]
+```
+
+`open_file` 是 argv 数组，Herdr 不会通过 shell 运行它。占位符：`{file}` 是绝对路径，`{line}` 和 `{column}` 默认为 `1`，`{root}` 是被点击窗格工作目录的 Git 根目录（不在仓库中时为窗格目录）。VS Code 示例会聚焦已打开该 worktree 的窗口，否则为它打开新窗口。
+
+Herdr 先相对窗格工作目录、再相对 Git 根目录解析引用。像 `intent.py` 这样只有文件名的引用会在仓库文件中查找。有多个文件匹配时，Herdr 会选择完整路径出现在窗格最近输出中的那个；否则会在覆盖窗格中打开 `fzf` 选择器。没有 `fzf` 时，会打开第一个匹配项并显示提示。无法解析为现有文件的文本会像往常一样把点击传给窗格。
+
 ## 远程连接
 
 远程连接默认使用临时保活设置和连接复用兜底来管理 SSH 连接。

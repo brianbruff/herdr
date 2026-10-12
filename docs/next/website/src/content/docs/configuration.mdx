@@ -96,6 +96,19 @@ Grouped worktrees still behave like normal Herdr workspaces: they can be focused
 
 Deleting a worktree checkout is explicit. Use `Delete worktree checkout...` on a grouped child workspace to run `git worktree remove`. Herdr first asks Git to remove safely. If Git refuses because the checkout has modified or untracked files, Herdr asks again before running the forced remove. Branches are not deleted.
 
+## File links
+
+Ctrl+click a file reference in pane output, such as `intent.py:303`, `src/app/mod.rs:22:5`, or `pkg/intent.py:69-73`, to open it in your editor. File links are off until you set a command:
+
+```toml
+[editor]
+open_file = ["code", "{root}", "-g", "{file}:{line}:{column}"]
+```
+
+`open_file` is an argv array; Herdr does not run it through a shell. Placeholders: `{file}` is the absolute path, `{line}` and `{column}` default to `1`, and `{root}` is the Git root of the clicked pane's working directory (the pane directory when it is not in a repo). The VS Code example focuses the window that already has that worktree open, or opens a new window for it.
+
+Herdr resolves the reference against the pane's working directory, then the Git root. Bare names like `intent.py` are looked up among the repo's files. When several files match, Herdr picks the one whose full path appears in the pane's recent output; otherwise it opens an `fzf` picker in an overlay pane. Without `fzf`, it opens the first match and shows a toast. Text that does not resolve to an existing file passes the click through to the pane as usual.
+
 ## Remote attach
 
 Remote attach manages its SSH connection with a temporary keepalive and connection-reuse fallback by default.

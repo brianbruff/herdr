@@ -229,6 +229,42 @@ pub(crate) fn is_powershell_process_name(name: &str) -> bool {
     )
 }
 
+/// Builds a POSIX shell script that lets the user pick one of `labels`
+/// (paths relative to `root`) with fzf, then runs `open_argv` with every
+/// `file_marker` replaced by the chosen absolute path.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub(crate) fn unix_file_picker_argv(
+    labels: &[String],
+    root: &std::path::Path,
+    open_argv: &[String],
+    file_marker: &str,
+    quote_posix_arg: fn(&str) -> String,
+) -> Vec<String> {
+    let choices = labels
+        .iter()
+        .map(|label| quote_posix_arg(label))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let open = open_argv
+        .iter()
+        .map(|arg| {
+            arg.split(file_marker)
+                .map(quote_posix_arg)
+                .collect::<Vec<_>>()
+                .join("\"$file\"")
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let root = quote_posix_arg(&root.display().to_string());
+    let script = format!(
+        r#"selected=$(printf '%s\n' {choices} | fzf --prompt='open file> ' --height=40% --reverse --border --header='Use up/down then Enter. Esc cancels.' --exit-0) || exit 0
+[ -n "$selected" ] || exit 0
+file={root}/"$selected"
+{open} || {{ status=$?; printf 'open_file command failed (exit %s). Press Enter to close.' "$status"; read -r _; exit "$status"; }}"#
+    );
+    vec!["/bin/sh".to_string(), "-c".to_string(), script]
+}
+
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(crate) fn interactive_unix_shell_command(
     argv: &[String],
@@ -500,5 +536,53 @@ mod tests {
             read_limited_reader(input, 16).expect("limited read"),
             LimitedRead::Complete(b"image".to_vec())
         );
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn file_picker_script_opens_the_picked_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "herdr-file-picker-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let bin = dir.join("bin");
+        std::fs::create_dir_all(&bin).expect("create fake bin");
+        // Stand-in fzf that always picks the second choice.
+        let fzf = bin.join("fzf");
+        std::fs::write(&fzf, "#!/bin/sh\nsed -n 2p\n").expect("write fake fzf");
+        let mut perms = std::fs::metadata(&fzf).expect("fzf metadata").permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
+        std::fs::set_permissions(&fzf, perms).expect("chmod fzf");
+
+        let out = dir.join("out.txt");
+        let marker = "\u{0}file\u{0}";
+        let labels = vec!["a/one.py".to_string(), "b/it's two.py".to_string()];
+        let open_argv = vec![
+            "/bin/sh".to_string(),
+            "-c".to_string(),
+            "printf '%s' \"$1\" > \"$2\"".to_string(),
+            "sh".to_string(),
+            format!("{marker}:5"),
+            out.display().to_string(),
+        ];
+        let argv = file_picker_argv(&labels, &dir.join("my root"), &open_argv, marker)
+            .expect("picker argv");
+        let path = format!("{}:/usr/bin:/bin", bin.display());
+        let status = std::process::Command::new(&argv[0])
+            .args(&argv[1..])
+            .env("PATH", path)
+            .status()
+            .expect("run picker script");
+
+        assert!(status.success());
+        assert_eq!(
+            std::fs::read_to_string(&out).expect("picker output"),
+            format!("{}/b/it's two.py:5", dir.join("my root").display())
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

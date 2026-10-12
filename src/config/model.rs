@@ -295,6 +295,7 @@ pub struct Config {
     pub keys: KeysConfig,
     pub ui: UiConfig,
     pub worktrees: WorktreesConfig,
+    pub editor: EditorConfig,
     pub advanced: AdvancedConfig,
     pub experimental: ExperimentalConfig,
     pub remote: RemoteConfig,
@@ -770,6 +771,14 @@ pub struct IndexedKeysConfig {
 pub struct WorktreesConfig {
     /// Root directory under which Herdr creates <repo>/<branch-slug> checkouts.
     pub directory: String,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct EditorConfig {
+    /// Command (argv) that opens a file reference Ctrl+clicked in pane output.
+    /// Placeholders: {file}, {line}, {column}, {root}. Empty disables file links.
+    pub open_file: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1271,6 +1280,22 @@ directory = "~/Projects/herdr-worktrees"
 "#;
         let config: Config = toml::from_str(toml).unwrap();
         assert_eq!(config.worktrees.directory, "~/Projects/herdr-worktrees");
+    }
+
+    #[test]
+    fn editor_open_file_defaults_empty_and_parses() {
+        let default_config = Config::default();
+        assert!(default_config.editor.open_file.is_empty());
+
+        let toml = r#"
+[editor]
+open_file = ["code", "{root}", "-g", "{file}:{line}:{column}"]
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(
+            config.editor.open_file,
+            vec!["code", "{root}", "-g", "{file}:{line}:{column}"]
+        );
     }
 
     #[test]

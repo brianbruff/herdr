@@ -31,6 +31,19 @@ pub(crate) fn interactive_shell_command(_argv: &[String], _shell_name: &str) -> 
     None
 }
 
+/// The fzf file picker needs a POSIX shell; callers fall back to the first match.
+pub(crate) fn file_picker_argv(
+    _labels: &[String],
+    _root: &std::path::Path,
+    _open_argv: &[String],
+    _file_marker: &str,
+) -> std::io::Result<Vec<String>> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "the file picker is not supported on this platform",
+    ))
+}
+
 /// Unsupported platform stub.
 pub(crate) fn scrollback_editor_argv(_path: &std::path::Path) -> std::io::Result<Vec<String>> {
     Err(std::io::Error::new(

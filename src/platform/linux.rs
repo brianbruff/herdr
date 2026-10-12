@@ -70,6 +70,21 @@ pub(crate) fn scrollback_editor_argv(path: &std::path::Path) -> std::io::Result<
     Ok(vec!["/bin/sh".to_string(), "-c".to_string(), command])
 }
 
+pub(crate) fn file_picker_argv(
+    labels: &[String],
+    root: &std::path::Path,
+    open_argv: &[String],
+    file_marker: &str,
+) -> std::io::Result<Vec<String>> {
+    Ok(super::unix_file_picker_argv(
+        labels,
+        root,
+        open_argv,
+        file_marker,
+        shell_quote,
+    ))
+}
+
 pub(crate) fn interactive_shell_command(argv: &[String], shell_name: &str) -> Option<String> {
     super::interactive_unix_shell_command(argv, shell_name, shell_quote)
 }

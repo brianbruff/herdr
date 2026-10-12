@@ -1038,6 +1038,18 @@
       ]
     },
     {
+      "id": "editor",
+      "title": "Editor",
+      "keys": [
+        {
+          "key": "editor.open_file",
+          "type": "list of strings",
+          "default": "[]",
+          "description": "Command argv that opens a file reference Ctrl+clicked in pane output, such as `intent.py:303` or `src/app.rs:22:5`. Placeholders: `{file}` (absolute path), `{line}`, `{column}`, and `{root}` (git root of the pane cwd). Empty disables file links."
+        }
+      ]
+    },
+    {
       "id": "remote",
       "title": "Remote",
       "keys": [

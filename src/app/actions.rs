@@ -2224,6 +2224,45 @@ impl AppState {
         viewport_row: u16,
         col: u16,
     ) -> Option<String> {
+        if let Some(uri) =
+            self.hyperlink_at_pane_cell(terminal_runtimes, pane_id, viewport_row, col)
+        {
+            return safe_web_url(&uri).map(str::to_owned);
+        }
+        let (line, logical_col) =
+            self.logical_line_at_pane_cell(terminal_runtimes, pane_id, viewport_row, col)?;
+        url_at_column(&line, logical_col).map(str::to_owned)
+    }
+
+    /// Finds a file reference such as `src/main.rs:12` under a pane cell.
+    pub(crate) fn file_ref_at_pane_cell(
+        &self,
+        terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry,
+        pane_id: crate::layout::PaneId,
+        viewport_row: u16,
+        col: u16,
+    ) -> Option<super::file_links::FileRef> {
+        if let Some(uri) =
+            self.hyperlink_at_pane_cell(terminal_runtimes, pane_id, viewport_row, col)
+        {
+            return uri
+                .starts_with("file://")
+                .then(|| super::file_links::parse_file_ref(&uri))
+                .flatten();
+        }
+        let (line, logical_col) =
+            self.logical_line_at_pane_cell(terminal_runtimes, pane_id, viewport_row, col)?;
+        let char_idx = cell_index_at_column(&text_cells(&line), logical_col)?;
+        super::file_links::file_ref_at_char(&line, char_idx)
+    }
+
+    fn hyperlink_at_pane_cell(
+        &self,
+        terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry,
+        pane_id: crate::layout::PaneId,
+        viewport_row: u16,
+        col: u16,
+    ) -> Option<String> {
         let ws_idx = self
             .active
             .filter(|idx| self.workspaces.get(*idx).is_some())?;
@@ -2231,18 +2270,32 @@ impl AppState {
         if viewport_row >= info.inner_rect.height || col >= info.inner_rect.width {
             return None;
         }
-
         let rt = self.runtime_for_pane_in_workspace(terminal_runtimes, ws_idx, pane_id)?;
         let screen_col = info.inner_rect.x.saturating_add(col);
         let screen_row = info.inner_rect.y.saturating_add(viewport_row);
-        if let Some((_, _, uri)) = rt
-            .visible_hyperlinks(info.inner_rect)
+        rt.visible_hyperlinks(info.inner_rect)
             .into_iter()
             .find(|((x, y), _, _)| *x == screen_col && *y == screen_row)
-        {
-            return safe_web_url(&uri).map(str::to_owned);
-        }
+            .map(|(_, _, uri)| uri)
+    }
 
+    /// Returns the soft-wrap-joined line under a pane cell and the clicked
+    /// display column within it.
+    fn logical_line_at_pane_cell(
+        &self,
+        terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry,
+        pane_id: crate::layout::PaneId,
+        viewport_row: u16,
+        col: u16,
+    ) -> Option<(String, u16)> {
+        let ws_idx = self
+            .active
+            .filter(|idx| self.workspaces.get(*idx).is_some())?;
+        let info = self.pane_info_by_id(pane_id)?;
+        if viewport_row >= info.inner_rect.height || col >= info.inner_rect.width {
+            return None;
+        }
+        let rt = self.runtime_for_pane_in_workspace(terminal_runtimes, ws_idx, pane_id)?;
         let metrics = self.pane_scroll_metrics(terminal_runtimes, pane_id);
         let visible_selection = Selection::line_range(
             pane_id,
@@ -2260,7 +2313,7 @@ impl AppState {
             .find('\n')
             .map_or(visible_text.len(), |idx| logical_cell.byte_index + idx);
         let line = visible_text.get(line_start..line_end)?;
-        url_at_column(line, logical_cell.logical_col).map(str::to_owned)
+        Some((line.to_owned(), logical_cell.logical_col))
     }
 
     pub fn copy_selection(&mut self, terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry) {
