@@ -1,0 +1,8 @@
+# Append this table to your Herdr config.toml.
+[[keys.command]]
+key = "prefix+t"
+type = "popup"
+command = '/bin/zsh "$HOME/.config/herdr/worktree-new.zsh"'
+description = "create and open worktree"
+width = "80%"
+height = "70%"
